@@ -1,9 +1,11 @@
 from flask import request, url_for
 from flask_api import FlaskAPI, status, exceptions
 from book_search import SearchFiltersInSQL,SearchSortBooks
+from flask import render_template
 from data import CreateAndDumpSQL
 import json
 import traceback
+from waitress import serve
 
 app = FlaskAPI(__name__)
 
@@ -14,19 +16,17 @@ def book_api():
 
     config = json.load(open('./config.json'))
     config['database'] = 'gutenberg'
-
+    final_data = {}
     search = SearchFiltersInSQL(config)
     sortdata = SearchSortBooks(config)
 
     print(request.data)
-    final_data = {}
     start =0
     end=55000
-    if request.method =='POST':
 
+    if request.method =='POST':
         filters = request.data.get('filters',None)
         print('Filter -->',type(filters))
-        # import pdb;pdb.set_trace()
         start = filters.get('start',0)
         end = filters.get('end',100)
 
@@ -85,19 +85,20 @@ def book_api():
             row['bookshelf'] = row['bookshelf'].split('--') if row['bookshelf'] != None else row['bookshelf']
 
         final_data['data'] = sql_data
-        return json.dumps(final_data,indent=4)
 
+
+    return json.dumps(final_data,indent=4)
 
 
 if __name__ == "__main__":
     config = json.load(open('./config.json'))
     print("here")
     try:
-        # dumpdata = CreateAndDumpSQL(config)
-        # dumpdata.create_database()
-        print("DataBase Created")
+        dumpdata = CreateAndDumpSQL(config)
+        dumpdata.create_database()
 
-        app.run(debug =False)
+        # app.run(debug =False)
+        serve(app,host='0.0.0.0',port=8000)
 
     except Exception as error:
         print("Error at Deployment",traceback.format_exc(error))
